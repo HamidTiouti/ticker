@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>News Ticker</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --text: #ffffff;
+      --speed: 35s; /* ticker speed */
+      --gap: 28px;  /* space between items */
+      --sepSize: 22px;
+      --padY: 10px;
+      --padX: 14px;
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    body { margin: 0; font-family: var(--font); background: #111; }
+
+    .ticker {
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      position: relative;
+      padding: var(--padY) var(--padX);
+      border-top: 1px solid rgba(255,255,255,.08);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    /* subtle fade edges */
+    .ticker::before, .ticker::after {
+      content: "";
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 50px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .ticker::before {
+      left: 0;
+      background: linear-gradient(to right, var(--bg), rgba(11,15,20,0));
+    }
+    .ticker::after {
+      right: 0;
+      background: linear-gradient(to left, var(--bg), rgba(11,15,20,0));
+    }
+
+    .track {
+      display: flex;
+      width: max-content;
+      gap: var(--gap);
+      align-items: center;
+      will-change: transform;
+      animation: scroll var(--speed) linear infinite;
+    }
+
+    /* pause on hover */
+    .ticker:hover .track { animation-play-state: paused; }
+
+    @keyframes scroll {
+      from { transform: translateX(100%); } /* start from right */
+      to   { transform: translateX(-100%); } /* move to left */
+    }
+
+    .item {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      white-space: nowrap;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .sep {
+      width: var(--sepSize);
+      height: var(--sepSize);
+      object-fit: contain;
+      opacity: .95;
+      flex: 0 0 auto;
+    }
+
+    /* small screens */
+    @media (max-width: 480px) {
+      .item { font-size: 14px; }
+      :root { --speed: 28s; --sepSize: 18px; --gap: 18px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="ticker" aria-label="News ticker">
+    <div id="track" class="track"></div>
+  </div>
+
+  <script>
+    // ✅ Put your separator PNG in your GitHub repo
+    const SEPARATOR_PNG = "assets/separator.png";
+
+    // ✅ Google Sheets published-as-CSV URL (recommended)
+    // Example:
+    // const CSV_URL = "https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={TAB_NAME}";
+    const CSV_URL = "PASTE_YOUR_PUBLISHED_CSV_URL_HERE";
+
+    // How often to refresh titles (ms)
+    const REFRESH_EVERY = 5 * 60 * 1000;
+
+    function parseCSV(text) {
+      // Simple CSV parser: one title per line OR first column per row.
+      // Handles quoted values in a basic way.
+      const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
+      return lines.map(line => {
+        // take first column
+        const match = line.match(/^"([^"]*(?:""[^"]*)*)"|([^,]*)/);
+        let value = match ? (match[1] ?? match[2] ?? "") : line;
+        value = value.replace(/""/g, '"').trim();
+        // remove header if it looks like one
+        return value;
+      }).filter(t => t && t.toLowerCase() !== "title" && t.toLowerCase() !== "titles");
+    }
+
+    function buildTrack(titles) {
+      const track = document.getElementById("track");
+      track.innerHTML = "";
+
+      // Duplicate list so the scroll feels continuous
+      const doubled = [...titles, ...titles];
+
+      doubled.forEach((t, i) => {
+        const span = document.createElement("span");
+        span.className = "item";
+
+        // title
+        const title = document.createElement("span");
+        title.textContent = t;
+
+        // separator after each item (except last)
+        const sep = document.createElement("img");
+        sep.className = "sep";
+        sep.src = SEPARATOR_PNG;
+        sep.alt = "";
+
+        span.appendChild(title);
+        span.appendChild(sep);
+
+        track.appendChild(span);
+      });
+
+      // Restart animation to avoid “jump” after refresh
+      track.style.animation = "none";
+      // force reflow
+      void track.offsetHeight;
+      track.style.animation = "";
+    }
+
+    async function loadTitles() {
+      if (!CSV_URL || CSV_URL.includes("PASTE_YOUR")) {
+        console.warn("Set CSV_URL to your published Google Sheets CSV link.");
+        buildTrack(["Set CSV_URL first"]);
+        return;
+      }
+
+      try {
+        const res = await fetch(CSV_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        const titles = parseCSV(text);
+
+        buildTrack(titles.length ? titles : ["No titles found in CSV"]);
+      } catch (e) {
+        console.error(e);
+        buildTrack(["Failed to load news (check CSV access / URL)"]);
+      }
+    }
+
+    loadTitles();
+    setInterval(loadTitles, REFRESH_EVERY);
+  </script>
+</body>
+</html>
