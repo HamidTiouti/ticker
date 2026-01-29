@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Ticker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .ticker-container {
+            width: 100%;
+            max-width: 1200px;
+            background-color: #1a1a1a;
+            padding: 15px 0;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .ticker-wrapper {
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            animation: scroll 30s linear infinite;
+        }
+
+        .ticker-item {
+            display: inline-flex;
+            align-items: center;
+            padding: 0 40px;
+        }
+
+        .ticker-text {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .ticker-separator {
+            width: 30px;
+            height: 30px;
+            margin: 0 30px;
+            object-fit: contain;
+        }
+
+        @keyframes scroll {
+            0% {
+                transform: translateX(-50%);
+            }
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        .ticker-wrapper:hover {
+            animation-play-state: paused;
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-input {
+            margin: 10px 0;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input[type="file"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .instructions {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #1a1a1a;
+            text-align: left;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #1a1a1a;
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 100%; max-width: 1200px;">
+        <div class="controls">
+            <h2>News Ticker</h2>
+            
+            <div class="instructions">
+                <h3>Configuration:</h3>
+                <ul>
+                    <li>CSV File: C:\assets\titles.csv</li>
+                    <li>Logo: C:\assets\logo.png</li>
+                    <li>Scrolling from left to right</li>
+                    <li>Hover over the ticker to pause</li>
+                </ul>
+                <p style="margin-top: 10px; color: #999; font-size: 12px;">
+                    Note: Update the file paths in the script section if your files have different names
+                </p>
+            </div>
+        </div>
+
+        <div class="ticker-container">
+            <div class="ticker-wrapper" id="tickerWrapper">
+                <!-- Ticker items will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let titles = [];
+        let logoSrc = '';
+
+        // Configuration - update these paths if your files have different names
+        const CSV_PATH = 'file:///C:/assets/titles.csv';
+        const LOGO_PATH = 'file:///C:/assets/logo.png';
+
+        // Load CSV file
+        async function loadCSV() {
+            try {
+                const response = await fetch(CSV_PATH);
+                const text = await response.text();
+                titles = parseCSV(text);
+                renderTicker();
+            } catch (error) {
+                console.error('Error loading CSV:', error);
+                // Fallback to sample data
+                titles = ['Sample News Title 1', 'Sample News Title 2', 'Sample News Title 3', 'Sample News Title 4'];
+                renderTicker();
+            }
+        }
+
+        // Load logo
+        function loadLogo() {
+            logoSrc = LOGO_PATH;
+            renderTicker();
+        }
+
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            return lines.map(line => {
+                // Get first column (handle comma-separated values)
+                const firstColumn = line.split(',')[0].trim();
+                // Remove quotes if present
+                return firstColumn.replace(/^["']|["']$/g, '');
+            });
+        }
+
+        function renderTicker() {
+            const wrapper = document.getElementById('tickerWrapper');
+            wrapper.innerHTML = '';
+
+            // Create ticker content (duplicate for seamless loop)
+            const createTickerContent = () => {
+                let html = '';
+                titles.forEach(title => {
+                    html += `
+                        <div class="ticker-item">
+                            <span class="ticker-text">${escapeHtml(title)}</span>
+                            <img src="${logoSrc}" alt="separator" class="ticker-separator" />
+                        </div>
+                    `;
+                });
+                return html;
+            };
+
+            // Add content twice for seamless scrolling
+            wrapper.innerHTML = createTickerContent() + createTickerContent();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        loadLogo();
+        loadCSV();
+    </script>
+</body>
+</html>
